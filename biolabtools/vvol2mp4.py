@@ -1,13 +1,19 @@
 import os
 import sys
 import math
+import logging
 import argparse
 import subprocess as sp
 
 import psutil
+import coloredlogs
 import numpy as np
 
 from stitcher import VirtualFusedVolume
+
+
+logger = logging.getLogger(__name__)
+coloredlogs.install(level='DEBUG', fmt='%(levelname)s [%(name)s]: %(message)s')
 
 
 class CustomFormatter(argparse.ArgumentDefaultsHelpFormatter,
@@ -70,14 +76,19 @@ def main():
 
     os.makedirs(args.output_dir, exist_ok=True)
 
-    for j in range(0, int(math.ceil(vfv.shape[-2] / temp_shape[-2]))):
-        for i in range(0, int(math.ceil(vfv.shape[-1] / temp_shape[-1]))):
+    jmax = int(math.ceil(vfv.shape[-2] / temp_shape[-2]))
+    imax = int(math.ceil(vfv.shape[-1] / temp_shape[-1]))
+
+    for j in range(0, jmax):
+        for i in range(0, imax):
             y = j * temp_shape[-2]
             x = i * temp_shape[-1]
 
             output_file = '{:05}_{:05}.mp4'.format(x, y)
             command[-1] = os.path.join(args.output_dir, output_file)
 
+            logger.info('Progress: {:.2f}%, output_file: {}'.format(
+                (j * imax + i) / (jmax * imax) * 100, output_file))
             pipe = sp.Popen(command, stdin=sp.PIPE, stderr=sp.PIPE)
 
             z = 0
