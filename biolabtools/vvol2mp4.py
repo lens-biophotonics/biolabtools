@@ -28,6 +28,15 @@ def parse_args():
         epilog='Author: Giacomo Mazzamuto <mazzamuto@lens.unifi.it>\n',
         formatter_class=CustomFormatter)
 
+    group = parser.add_argument_group(
+        'Grayscale options', description='These options apply for 16 bit '
+                                         'grayscale images only.')
+    group.add_argument('--lshift', type=int, default=None,
+                       choices=[0, 1, 2, 3, 4, 5, 6, 7], help='left shift')
+    group.add_argument('--bpp', type=int, default=None, choices=[8, 12],
+                       help='how many bits per pixel will be taken (msb) '
+                            'after saturation and shift')
+
     parser.add_argument('stitch_file', type=str,
                         help='input file (stitch.yml)')
     parser.add_argument('output_dir', type=str, help='output directory')
@@ -49,14 +58,33 @@ def main():
     xy_size = np.asscalar(np.prod(temp_shape[1::]) * 4)
     n_frames_in_ram = int(ram / xy_size / 1.5)
 
-    pix_fmt_in = 'gray'
-    pix_fmt_out = 'gray'
-    if vfv.nchannels == 3 and vfv.dtype == np.uint8:
-        pix_fmt_in = 'rgb24'
-        pix_fmt_out = 'yuv444p'
-    elif vfv.nchannels == 1 and vfv.dtype == np.uint16:
+    pix_fmt_in = None
+    pix_fmt_out = None
+    if vfv.nchannels == 1 and vfv.dtype == np.uint16:
         pix_fmt_in = 'gray16{}'.format(
             'le' if sys.byteorder == 'little' else 'be')
+        if args.bpp == 12:
+            pix_fmt_out = 'gray12le'
+        elif args.bpp == 8:
+            pix_fmt_out = 'gray'
+        elif args.bpp is None:
+            sys.exit('Error: option --bpp required for 16 bit images.')
+        else:
+            raise ValueError('Invalid bpp: {}'.format(args.bpp))
+    if vfv.dtype == np.uint8:
+        if args.bpp is not None or args.lshift is not None:
+            logger.warning('Ignoring bpp and lshift arguments for 8bpp or RGB '
+                           'images')
+        args.bpp = None
+        args.lshift = None
+        if vfv.nchannels == 3:
+            pix_fmt_in = 'rgb24'
+            pix_fmt_out = 'yuv444p'
+        elif vfv.nchannels == 1:
+            pix_fmt_in = 'gray'
+            pix_fmt_out = 'gray'
+    if pix_fmt_in is None or pix_fmt_out is None:
+        raise ValueError('Invalid nchannels and pix_fmt combination')
 
     command = [
         'ffmpeg',
@@ -70,7 +98,7 @@ def main():
         '-an',  # no audio
         '-c:v', 'libx265',
         '-pix_fmt', pix_fmt_out,
-        '-preset', 'medium',
+        '-crf', '23',
         'output.mp4'
     ]
 
@@ -104,6 +132,13 @@ def main():
                 )
                 a = vfv[idx]
 
+                if args.lshift:
+                    # gray16 to gray12 takes the 12 most significant bits
+                    # => we need to saturate and perform a left shift
+                    nbytes = np.dtype(vfv.dtype).itemsize
+                    cond = a > 2**(args.bpp + args.lshift) - 1
+                    a[cond] = 2**(nbytes * 8) - 1
+                    a = a << (nbytes * 8 - args.bpp - args.lshift)
                 if np.prod(temp_shape[-2::]) != np.prod(a.shape[-2::]):
                     padding = [(0, 0) for _ in temp_shape]
                     padding[-1] = (0, temp_shape[-1] - a.shape[-1])
