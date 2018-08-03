@@ -81,6 +81,7 @@ setup(
             'convert_to_jp2ar = biolabtools.convert_to_jp2ar:main',
             'tiffdir2tiff3d = biolabtools.tiffdir2tiff3d:main',
             'downscale_yml = biolabtools.downscale_yml:main',
+            'extract_tiffs = biolabtools.extract_tiffs:main',
         ],
 
     },
