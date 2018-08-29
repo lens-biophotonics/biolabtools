@@ -5,7 +5,6 @@ import argparse
 import coloredlogs
 
 from zetastitcher import InputFile
-from zetastitcher import FileMatrix
 
 import skimage.external.tifffile as tiff
 
@@ -38,11 +37,15 @@ def parse_args():
 
 def main():
     args = parse_args()
-    fm = FileMatrix(args.input_path)
 
     os.makedirs(args.output_dir, exist_ok=True)
 
-    for index, row in fm.data_frame.iterrows():
+    g = os.walk(args.input_path)
+
+    flist = next(g)[1]
+
+    for index in flist:
+        index = os.path.join(args.input_path, index)
         logger.info(index)
 
         infile = InputFile(index)
