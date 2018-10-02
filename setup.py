@@ -55,6 +55,7 @@ setup(
     install_requires=[
         'coloredlogs',
         'glymur',
+        'zetastitcher'
     ],
 
     # List additional groups of dependencies here (e.g. development
