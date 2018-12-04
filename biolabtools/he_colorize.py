@@ -66,6 +66,8 @@ def main():
         img_he[idx_2] = np.power(10, -(0.267 * img[idx_1] + 0.283 * img[idx_0]))
 
         logger.info('saving to {}'.format(args.output_file))
+        if infile.nchannels > 1:
+            img_he = np.moveaxis(img_he, -3, -1)
         tiff.imsave(args.output_file, (255 * img_he).astype(np.uint8),
                     append=True, bigtiff=bigtiff)
 
