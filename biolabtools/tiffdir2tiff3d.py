@@ -4,9 +4,11 @@ import argparse
 
 import coloredlogs
 
-from zetastitcher import InputFile
-
+import numpy as np
 import skimage.external.tifffile as tiff
+
+
+from zetastitcher import InputFile
 
 
 logger = logging.getLogger(__name__)
@@ -51,7 +53,11 @@ def main():
         infile = InputFile(index)
         if args.channel != -1:
             infile.channel = args.channel
+
         a = infile.whole()
+
+        if infile.nchannels != 1 and infile.channel == -1:
+            a = np.moveaxis(a, -3, -1)
 
         name = os.path.basename(index)
         name, ext = os.path.splitext(name)
