@@ -83,7 +83,10 @@ setup(
             'tiffdir2tiff3d = biolabtools.tiffdir2tiff3d:main',
             'downscale_yml = biolabtools.downscale_yml:main',
             'extract_tiffs = biolabtools.extract_tiffs:main',
+            'prepare_for_benchmarks = biolabtools.prepare_for_benchmarks:main',
+            'compare_stitchers = biolabtools.compare_stitchers:main',
             'he_colorize = biolabtools.he_colorize:main',
+            'mip = biolabtools.mip:main',
         ],
 
     },
