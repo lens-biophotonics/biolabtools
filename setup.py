@@ -87,7 +87,8 @@ setup(
             'compare_stitchers = biolabtools.compare_stitchers:main',
             'he_colorize = biolabtools.he_colorize:main',
             'mip = biolabtools.mip:main',
-            'bioretics_tar_to_3Dtiff = biolabtools.bioretics_tar_to_3Dtiff:main'
+            'bioretics_tar_to_3Dtiff = biolabtools.bioretics_tar_to_3Dtiff:main',
+            'stack2tiffs = biolabtools.stack2tiffs:main',
         ],
 
     },
