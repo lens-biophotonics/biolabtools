@@ -12,7 +12,7 @@ from zetastitcher.fuser.xcorr_filematrix import XcorrFileMatrix
 
 
 logger = logging.getLogger(__name__)
-coloredlogs.install(level='DEBUG', fmt='%(levelname)s [%(name)s]: %(message)s')
+coloredlogs.install(level='INFO', fmt='%(levelname)s [%(name)s]: %(message)s')
 
 
 class CustomFormatter(argparse.ArgumentDefaultsHelpFormatter,
@@ -37,6 +37,7 @@ def parse_args():
     args = parser.parse_args()
 
     return args
+
 
 def main():
     args = parse_args()

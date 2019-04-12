@@ -16,7 +16,7 @@ from zetastitcher import InputFile
 RAMDISK_PATH = '/mnt/ramdisk'
 
 logger = logging.getLogger(__name__)
-coloredlogs.install(level='DEBUG', fmt='%(levelname)s [%(name)s]: %(message)s')
+coloredlogs.install(level='INFO', fmt='%(levelname)s [%(name)s]: %(message)s')
 
 
 def parse_args():
