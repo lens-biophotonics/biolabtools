@@ -54,8 +54,9 @@ setup(
     # https://packaging.python.org/en/latest/requirements.html
     install_requires=[
         'coloredlogs',
+        'psutil',
         'glymur',
-        'zetastitcher'
+        'zetastitcher',
     ],
 
     # List additional groups of dependencies here (e.g. development
@@ -89,6 +90,7 @@ setup(
             'mip = biolabtools.mip:main',
             'bioretics_tar_to_3Dtiff = biolabtools.bioretics_tar_to_3Dtiff:main',
             'stack2tiffs = biolabtools.stack2tiffs:main',
+            'extract_channel = biolabtools.extract_channel:main',
         ],
 
     },
