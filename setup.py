@@ -91,6 +91,7 @@ setup(
             'bioretics_tar_to_3Dtiff = biolabtools.bioretics_tar_to_3Dtiff:main',
             'stack2tiffs = biolabtools.stack2tiffs:main',
             'extract_channel = biolabtools.extract_channel:main',
+            'sum_channels = biolabtools.sum_channels:main',
         ],
 
     },
