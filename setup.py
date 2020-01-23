@@ -56,6 +56,7 @@ setup(
         'coloredlogs',
         'psutil',
         'glymur',
+        'transforms3d',
         'zetastitcher',
     ],
 
@@ -92,6 +93,7 @@ setup(
             'stack2tiffs = biolabtools.stack2tiffs:main',
             'extract_channel = biolabtools.extract_channel:main',
             'sum_channels = biolabtools.sum_channels:main',
+            'dualspim_reslice = biolabtools.dualspim_reslice:main',
         ],
 
     },
