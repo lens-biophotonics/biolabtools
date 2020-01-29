@@ -72,7 +72,7 @@ def main():
         a.shape[0] * abs(costheta) + sheared_shape[2] / abs(sintheta),
         a.shape[1],
         a.shape[0] * abs(sintheta),
-        ]
+    ]
     final_shape = np.ceil(np.abs(final_shape)).astype(np.int64)
 
     # transform to objective reference system
