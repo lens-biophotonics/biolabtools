@@ -48,6 +48,10 @@ setup(
     # this:
     #   py_modules=["my_module"],
 
+    dependency_links=[
+        'https://developer.download.nvidia.com/compute/redist/cuda/10.0'
+    ],
+
     # List run-time dependencies here.  These will be installed by pip when
     # your project is installed. For an analysis of "install_requires" vs pip's
     # requirements files see:
@@ -94,7 +98,8 @@ setup(
             'extract_channel = biolabtools.extract_channel:main',
             'sum_channels = biolabtools.sum_channels:main',
             'dualspim_reslice = biolabtools.dualspim_reslice:main',
+            'img_downscale = biolabtools.img_downscale:main',
+            'flip_z = biolabtools.flip_z:main',
         ],
-
     },
 )
