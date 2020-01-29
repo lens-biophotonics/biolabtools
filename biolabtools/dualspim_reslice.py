@@ -102,8 +102,8 @@ def main():
 
     # final translation to center output in the "viewport"
     finalT = np.eye(4, 4)
-    diff_shape = np.abs(final_shape - sheared_shape)
-    finalT[:3, -1] = [diff_shape[0] / 2, 0, -1 * diff_shape[2] / 2]
+    diff_shape = final_shape - sheared_shape
+    finalT[:3, -1] = diff_shape / 2
 
     extraFlipZ = np.eye(4)
     extraFlipZ[2, -1] = final_shape[2]
