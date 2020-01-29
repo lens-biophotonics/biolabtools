@@ -21,7 +21,10 @@ coloredlogs.install(level='INFO', fmt='%(levelname)s [%(name)s]: %(message)s')
 def parse_args():
     parser = argparse.ArgumentParser(
         description='Reslice images taken with dual view SPIM',
-        epilog='Author: Giacomo Mazzamuto <mazzamuto@lens.unifi.it>')
+        epilog='Author: Giacomo Mazzamuto <mazzamuto@lens.unifi.it>\n'
+               '        Vladislav Gavryusev <gavryusev@lens.unifi.it>',
+        formatter_class=argparse.RawTextHelpFormatter,
+    )
 
     parser.add_argument('-t', '--theta', type=float, required=True,
                         help='rotation angle (degrees)')
