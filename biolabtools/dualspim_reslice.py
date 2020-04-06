@@ -44,6 +44,22 @@ def parse_args():
     return args
 
 
+def grid_to_coords(*xi):
+    xx, yy, zz = map(np.ndarray.flatten, np.meshgrid(*xi))
+    coords = np.c_[xx, yy, zz]
+    return coords
+
+
+def transform_coords(M, coords):
+    coords = np.array(coords)
+    if coords.ndim == 1:
+        coords = coords[np.newaxis, ...]
+    if coords.shape[1] == 3:
+        coords = np.c_[coords, np.ones(coords.shape[0])]  # homogeneous coord
+
+    return M.dot(coords.T).T[:, :3]
+
+
 def inv_matrix(shape, theta, r):
     """
     Compute inverse coordinate transformation matrix.
@@ -125,10 +141,9 @@ def inv_matrix(shape, theta, r):
     # check that the 8 corners in the original stack are within the
     # transformed volume. Direction: forward (original -> transformed)
     xx, yy, zz = map(np.ndarray.flatten, np.meshgrid([0, 1], [0, 1], [0, 1]))
-    coords = np.c_[xx, yy, zz] * (shape - 1)
-    coords = np.c_[coords, np.ones(8)]  # homogeneous coord
+    coords = grid_to_coords([0, 1], [0, 1], [0, 1]) * (shape - 1)
+    transformed_coords = transform_coords(M, coords).astype(np.int64)
 
-    transformed_coords = M.dot(coords.T).T.astype(np.int64)[:, :3]
     cond = (0 <= transformed_coords) & (transformed_coords < final_shape)
     if not cond.all():
         raise ValueError('Original corners outside transformed volume')
@@ -137,10 +152,8 @@ def inv_matrix(shape, theta, r):
     # to find the extra translation needed to remove black voxels in that corner
     # Direction: backward (transformed -> original)
     rng = np.arange(0, 10)
-    xx, yy, zz = map(np.ndarray.flatten, np.meshgrid(rng, rng, rng))
-    coords = np.c_[xx, yy, zz]
-    coords = np.c_[coords, np.ones(coords.shape[0])]  # homogeneous coord
-    transformed_coords = M_inv.dot(coords.T).T[:, :3]
+    coords = grid_to_coords(rng, rng, rng)
+    transformed_coords = transform_coords(M_inv, coords)
 
     cond = ((0 <= transformed_coords)
             & (transformed_coords <= (shape - 1)))
@@ -156,8 +169,9 @@ def inv_matrix(shape, theta, r):
     # Direction: backward (transformed -> original)
 
     # 3 is to preserve homogeneous coordinate
+    coords = np.c_[coords, np.ones(coords.shape[0])]  # homogeneous coord
     coords = (np.r_[final_shape, 3] - 1 - coords)
-    transformed_coords = M_inv.dot(coords.T).T[:, :3]
+    transformed_coords = transform_coords(M_inv, coords)
 
     cond = ((0 <= transformed_coords)
             & (transformed_coords <= (shape - 1)))
