@@ -124,7 +124,7 @@ def inv_matrix(shape, theta, r):
 
     # check that the 8 corners in the original stack are within the
     # transformed volume. Direction: forward (original -> transformed)
-    yy, xx, zz = map(np.ndarray.flatten, np.meshgrid([0, 1], [0, 1], [0, 1]))
+    xx, yy, zz = map(np.ndarray.flatten, np.meshgrid([0, 1], [0, 1], [0, 1]))
     coords = np.c_[xx, yy, zz] * (shape - 1)
     coords = np.c_[coords, np.ones(8)]  # homogeneous coord
 
