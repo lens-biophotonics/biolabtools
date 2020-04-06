@@ -168,6 +168,24 @@ def inv_matrix(shape, theta, r):
     return M_inv, final_shape
 
 
+def transform(array, M_inv, output_shape, direction, view):
+    a = array
+    if direction == 'l':
+        a = np.flip(a, -1)  # sample moving right to left
+
+    logger.info('applying transform...')
+    transformed = ndimage.affine_transform(a, M_inv, output_shape=output_shape)
+
+    if view == 'r':
+        # cancel extra flip along Z
+        transformed = np.flip(transformed, -1)
+
+    # view sample from the front side
+    transformed = np.flip(transformed, 0)
+
+    return transformed
+
+
 def main():
     args = parse_args()
 
@@ -187,18 +205,7 @@ def main():
     logger.info('loading {}'.format(args.input_file))
     a = infile.whole().T  # X, Y, Z order
 
-    if args.direction == 'l':
-        a = np.flip(a, -1)  # sample moving right to left
-
-    logger.info('applying transform...')
-    transformed = ndimage.affine_transform(a, M_inv, output_shape=final_shape)
-
-    if args.view == 'r':
-        # cancel extra flip along Z
-        transformed = np.flip(transformed, -1)
-
-    # view sample from the front side
-    transformed = np.flip(transformed, 0)
+    transformed = transform(a, M_inv, final_shape, args.direction, args.view)
 
     output_dir = os.path.dirname(args.output_file)
     if output_dir:
