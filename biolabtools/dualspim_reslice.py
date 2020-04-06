@@ -48,33 +48,23 @@ def main():
     args = parse_args()
 
     infile = InputFile(args.input_file)
-
-    if os.path.exists(args.output_file):
-        logger.warning('Output file {} already exists')
-        if not args.force:
-            return
-
-    logger.info('loading {}'.format(args.input_file))
-    a = infile.whole().T  # X, Y, Z order
-
-    if args.direction == 'l':
-        a = np.flip(a, -1)  # sample moving right to left
+    ashape = np.flipud(np.array(infile.shape))  # X, Y, Z order
 
     r = args.ratio  # z / xy ratio
     theta = -args.theta * np.pi / 180
     costheta = math.cos(theta)
     sintheta = math.sin(theta)
 
-    Dr = (a.shape[2] - 1) * r
+    Dr = (ashape[2] - 1) * r
 
-    sheared_shape = np.array(a.shape, dtype=np.float64)
+    sheared_shape = np.array(ashape, dtype=np.float64)
     sheared_shape[0] += Dr
     sheared_shape[2] = Dr
 
     final_shape = [
-        a.shape[0] * abs(costheta) + sheared_shape[2] / abs(sintheta),
-        a.shape[1],
-        a.shape[0] * abs(sintheta),
+        ashape[0] * abs(costheta) + sheared_shape[2] / abs(sintheta),
+        ashape[1],
+        ashape[0] * abs(sintheta),
     ]
     final_shape = np.ceil(np.abs(final_shape)).astype(np.int64)
 
@@ -118,7 +108,7 @@ def main():
     # check that the 8 corners in the original stack are within the
     # transformed volume. Direction: forward (original -> transformed)
     yy, xx, zz = map(np.ndarray.flatten, np.meshgrid([0, 1], [0, 1], [0, 1]))
-    coords = np.c_[xx, yy, zz] * (np.array(a.shape) - 1)
+    coords = np.c_[xx, yy, zz] * (ashape - 1)
     coords = np.c_[coords, np.ones(8)]  # homogeneous coord
 
     transformed_coords = M.dot(coords.T).T.astype(np.int64)[:, :3]
@@ -136,7 +126,7 @@ def main():
     transformed_coords = M_inv.dot(coords.T).T[:, :3]
 
     cond = ((0 <= transformed_coords)
-            & (transformed_coords <= (np.array(a.shape) - 1)))
+            & (transformed_coords <= (ashape - 1)))
     idx = np.all(cond, axis=-1)
     extraT = np.eye(4)
     extraT[:3, -1] = -1 * np.min(coords[idx], axis=0)[:3]
@@ -153,12 +143,23 @@ def main():
     transformed_coords = M_inv.dot(coords.T).T[:, :3]
 
     cond = ((0 <= transformed_coords)
-            & (transformed_coords <= (np.array(a.shape) - 1)))
+            & (transformed_coords <= (ashape - 1)))
     idx = np.all(cond, axis=-1)
 
     final_shape = (np.max(coords[idx, :3].astype(np.int64), axis=0) + 1)
     logger.info('input_shape: {}, output_shape: {}'
                 .format(infile.shape, tuple(final_shape)))
+
+    if os.path.exists(args.output_file):
+        logger.warning('Output file {} already exists')
+        if not args.force:
+            return
+
+    logger.info('loading {}'.format(args.input_file))
+    a = infile.whole().T  # X, Y, Z order
+
+    if args.direction == 'l':
+        a = np.flip(a, -1)  # sample moving right to left
 
     logger.info('applying transform...')
     transformed = ndimage.affine_transform(a, M_inv, output_shape=final_shape)
