@@ -44,27 +44,44 @@ def parse_args():
     return args
 
 
-def main():
-    args = parse_args()
+def inv_matrix(shape, theta, r):
+    """
+    Compute inverse coordinate transformation matrix.
 
-    infile = InputFile(args.input_file)
-    ashape = np.flipud(np.array(infile.shape))  # X, Y, Z order
+    Parameters
+    ----------
+    shape : tuple
+            input shape, in (X, Y, Z) order
+    theta : float
+            rotation angle (degrees)
+    r : float
+        z / xy ratio
 
-    r = args.ratio  # z / xy ratio
-    theta = -args.theta * np.pi / 180
+    Returns
+    -------
+    M_inv : :class:`numpy.ndarray`
+            The inverse coordinate transformation inv_matrix, mapping output
+            coordinates to input coordinates. To be used in
+            :func:`scipy.ndimage.affine_transform`
+    output_shape : tuple
+            The shape of the transformed output, in (X, Y, Z) order
+    """
+    shape = np.array(shape)
+
+    theta = -theta * np.pi / 180
     costheta = math.cos(theta)
     sintheta = math.sin(theta)
 
-    Dr = (ashape[2] - 1) * r
+    Dr = (shape[2] - 1) * r
 
-    sheared_shape = np.array(ashape, dtype=np.float64)
+    sheared_shape = np.array(shape, dtype=np.float64)
     sheared_shape[0] += Dr
     sheared_shape[2] = Dr
 
     final_shape = [
-        ashape[0] * abs(costheta) + sheared_shape[2] / abs(sintheta),
-        ashape[1],
-        ashape[0] * abs(sintheta),
+        shape[0] * abs(costheta) + sheared_shape[2] / abs(sintheta),
+        shape[1],
+        shape[0] * abs(sintheta),
     ]
     final_shape = np.ceil(np.abs(final_shape)).astype(np.int64)
 
@@ -108,7 +125,7 @@ def main():
     # check that the 8 corners in the original stack are within the
     # transformed volume. Direction: forward (original -> transformed)
     yy, xx, zz = map(np.ndarray.flatten, np.meshgrid([0, 1], [0, 1], [0, 1]))
-    coords = np.c_[xx, yy, zz] * (ashape - 1)
+    coords = np.c_[xx, yy, zz] * (shape - 1)
     coords = np.c_[coords, np.ones(8)]  # homogeneous coord
 
     transformed_coords = M.dot(coords.T).T.astype(np.int64)[:, :3]
@@ -126,7 +143,7 @@ def main():
     transformed_coords = M_inv.dot(coords.T).T[:, :3]
 
     cond = ((0 <= transformed_coords)
-            & (transformed_coords <= (ashape - 1)))
+            & (transformed_coords <= (shape - 1)))
     idx = np.all(cond, axis=-1)
     extraT = np.eye(4)
     extraT[:3, -1] = -1 * np.min(coords[idx], axis=0)[:3]
@@ -143,10 +160,22 @@ def main():
     transformed_coords = M_inv.dot(coords.T).T[:, :3]
 
     cond = ((0 <= transformed_coords)
-            & (transformed_coords <= (ashape - 1)))
+            & (transformed_coords <= (shape - 1)))
     idx = np.all(cond, axis=-1)
 
-    final_shape = (np.max(coords[idx, :3].astype(np.int64), axis=0) + 1)
+    final_shape = tuple(np.max(coords[idx, :3].astype(np.int64), axis=0) + 1)
+
+    return M_inv, final_shape
+
+
+def main():
+    args = parse_args()
+
+    infile = InputFile(args.input_file)
+    ashape = np.flipud(np.array(infile.shape))  # X, Y, Z order
+
+    M_inv, final_shape = inv_matrix(ashape, args.theta, args.ratio)
+
     logger.info('input_shape: {}, output_shape: {}'
                 .format(infile.shape, tuple(final_shape)))
 
