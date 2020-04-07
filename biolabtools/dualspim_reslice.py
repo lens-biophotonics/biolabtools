@@ -76,6 +76,12 @@ def inv_matrix(shape, theta, r, direction, view):
     r : float
         z / xy ratio
 
+    direction : str
+                stage motion direction ('l' or 'r')
+
+    view : str
+           camera view ('l' or 'r')
+
     Returns
     -------
     M_inv : :class:`numpy.ndarray`
@@ -200,6 +206,27 @@ def inv_matrix(shape, theta, r, direction, view):
 
 
 def transform(array, M_inv, output_shape, offset=None):
+    """
+    Apply affine transform to input array.
+
+    Parameters
+    ----------
+    array : :class:`numpy.ndarray`
+            Input array.
+    M_inv : :class:`numpy.ndarray`
+            The inverse coordinate transformation matrix (4x4,
+            using homogeneous coordinates).
+    output_shape : tuple
+    offset : sequence
+             Given an output image pixel index vector `o`, the pixel value is
+             determined from the input image at position
+             `np.dot(matrix, o) + offset`.
+
+    Returns
+    -------
+    transformed : :class:`numpy.ndarray`
+                  The transformed input.
+    """
     temp_M_inv = np.copy(M_inv)
     if offset is not None:
         temp_M_inv[:3, -1] += offset
@@ -214,11 +241,34 @@ def transform(array, M_inv, output_shape, offset=None):
     return transformed
 
 
-def sliced_transform(array, M_inv, final_shape, n=8):
-    final_shape = np.array(final_shape)
+def sliced_transform(array, M_inv, output_shape, n=8):
+    """
+    A generator calling :func:`transform` for each slice. This is useful to
+    compute smaller transforms and use less RAM.
 
-    stripe_height = final_shape[-1] // n
-    remainder = final_shape[-1] % n
+    The transformation is applied in slices along Z in the transformed space,
+    which map to slices along X in the input space.
+
+    Parameters
+    ----------
+    array : :class:`numpy.ndarray`
+            Input array.
+    M_inv : :class:`numpy.ndarray`
+            The inverse coordinate transformation matrix (4x4,
+            using homogeneous coordinates).
+    output_shape : tuple
+    n : int
+        Number of slices.
+
+    Yields
+    -------
+    transformed : :class:`numpy.ndarray`
+              The transformed slice.
+    """
+    output_shape = np.array(output_shape)
+
+    stripe_height = output_shape[-1] // n
+    remainder = output_shape[-1] % n
 
     top_edges = np.linspace(0, (n - 1) * stripe_height, n)
     heights = [stripe_height] * len(top_edges)
@@ -227,13 +277,13 @@ def sliced_transform(array, M_inv, final_shape, n=8):
     current_z = 0
     offset_offset = np.squeeze(transform_coords(M_inv, [0, 0, 0]))
     for h in heights:
-        output_shape = np.copy(final_shape)
-        output_shape[-1] = h
+        temp_shape = np.copy(output_shape)
+        temp_shape[-1] = h
 
         offset = transform_coords(M_inv, [0, 0, current_z])
         offset = np.squeeze(offset) - offset_offset
 
-        yield transform(array, M_inv, output_shape, offset)
+        yield transform(array, M_inv, temp_shape, offset)
         current_z += h
 
 
