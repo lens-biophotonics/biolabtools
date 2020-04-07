@@ -36,6 +36,9 @@ def parse_args():
                         choices={'l', 'r'}, help='stage motion direction')
     parser.add_argument('-f', '--force', action='store_true',
                         help="don't stop if output file exists")
+    parser.add_argument('-s', '--slices', metavar='N', type=int, required=False,
+                        help='perform transform in N slices, one at a time '
+                             'to reduce memory requirements')
     parser.add_argument('input_file', type=str)
     parser.add_argument('output_file', type=str)
 
@@ -182,13 +185,14 @@ def inv_matrix(shape, theta, r):
     return M_inv, final_shape
 
 
-def transform(array, M_inv, output_shape, direction, view):
-    a = array
-    if direction == 'l':
-        a = np.flip(a, -1)  # sample moving right to left
+def transform(array, M_inv, output_shape, view, offset=None):
+    temp_M_inv = np.copy(M_inv)
+    if offset is not None:
+        temp_M_inv[:3, -1] += offset
 
     logger.info('applying transform...')
-    transformed = ndimage.affine_transform(a, M_inv, output_shape=output_shape)
+    transformed = ndimage.affine_transform(
+        array, temp_M_inv, output_shape=output_shape)
 
     if view == 'r':
         # cancel extra flip along Z
@@ -198,6 +202,29 @@ def transform(array, M_inv, output_shape, direction, view):
     transformed = np.flip(transformed, 0)
 
     return transformed
+
+
+def sliced_transform(array, M_inv, final_shape, view, n=8):
+    final_shape = np.array(final_shape)
+
+    stripe_height = final_shape[-1] // n
+    remainder = final_shape[-1] % n
+
+    top_edges = np.linspace(0, (n - 1) * stripe_height, n)
+    heights = [stripe_height] * len(top_edges)
+    heights[-1] += remainder
+
+    current_z = 0
+    offset_offset = np.squeeze(transform_coords(M_inv, [0, 0, 0]))
+    for h in heights:
+        output_shape = np.copy(final_shape)
+        output_shape[-1] = h
+
+        offset = transform_coords(M_inv, [0, 0, current_z])
+        offset = np.squeeze(offset) - offset_offset
+
+        yield transform(array, M_inv, output_shape, view, offset)
+        current_z += h
 
 
 def main():
@@ -212,21 +239,44 @@ def main():
                 .format(infile.shape, tuple(final_shape)))
 
     if os.path.exists(args.output_file):
-        logger.warning('Output file {} already exists')
+        logger.error('Output file {} already exists (use -f to force)')
         if not args.force:
             return
 
     logger.info('loading {}'.format(args.input_file))
     a = infile.whole().T  # X, Y, Z order
 
-    transformed = transform(a, M_inv, final_shape, args.direction, args.view)
+    if args.direction == 'l':
+        a = np.flip(a, -1)  # sample moving right to left
 
     output_dir = os.path.dirname(args.output_file)
     if output_dir:
         os.makedirs(output_dir, exist_ok=True)
 
-    logger.info('saving to {}'.format(args.output_file))
-    tiff.imsave(args.output_file, transformed.T)
+    total_byte_size = np.asscalar(np.prod(final_shape) * infile.dtype.itemsize)
+    bigtiff = total_byte_size > 2 ** 31 - 1
+
+    if args.slices is None:
+        t = transform(a, M_inv, final_shape, args.view)
+        logger.info('saving to {}'.format(args.output_file))
+        tiff.imsave(args.output_file, t.T, bigtiff=bigtiff)
+        return
+
+    if os.path.exists(args.output_file):
+        os.remove(args.output_file)
+
+    i = 0
+    for t in sliced_transform(a, M_inv, final_shape, args.view, args.slices):
+        i += 1
+        logger.info('saving slice {}/{} to {}'.format(
+            i, args.slices, args.output_file))
+
+        t = t.T  # Z, Y, X order
+
+        # add dummy color axis to trick imsave
+        # (otherwise when size of Z is 3, it thinks it's an RGB image)
+        t = t[:, np.newaxis, ...]
+        tiff.imsave(args.output_file, t, append=True, bigtiff=bigtiff)
 
 
 if __name__ == '__main__':
