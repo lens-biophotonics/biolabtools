@@ -63,7 +63,7 @@ def transform_coords(M, coords):
     return M.dot(coords.T).T[:, :3]
 
 
-def inv_matrix(shape, theta, r):
+def inv_matrix(shape, theta, r, direction, view):
     """
     Compute inverse coordinate transformation matrix.
 
@@ -134,11 +134,17 @@ def inv_matrix(shape, theta, r):
     diff_shape = final_shape - sheared_shape
     finalT[:3, -1] = diff_shape / 2
 
-    extraFlipZ = np.eye(4)
-    extraFlipZ[2, -1] = final_shape[2]
-    extraFlipZ[2, 2] = -1
+    initial_flip_Z = np.eye(4)
+    if direction == 'l':  # sample moving from right to left
+        initial_flip_Z[2, -1] = shape[2] - 1
+        initial_flip_Z[2, 2] = -1
 
-    M = np.linalg.multi_dot([extraFlipZ, finalT, R, MO])
+    final_flip_Z = np.eye(4)
+    final_flip_Z[2, -1] = final_shape[2] - 1
+    final_flip_Z[2, 2] = -1
+
+    M_list = [final_flip_Z, finalT, R, MO, initial_flip_Z]
+    M = np.linalg.multi_dot(M_list)
     M_inv = np.linalg.inv(M)
 
     # check that the 8 corners in the original stack are within the
@@ -149,7 +155,7 @@ def inv_matrix(shape, theta, r):
 
     cond = (0 <= transformed_coords) & (transformed_coords < final_shape)
     if not cond.all():
-        raise ValueError('Original corners outside transformed volume')
+        raise RuntimeError('Original corners outside transformed volume')
 
     # in the transformed space, iterate over the pixels around (0, 0, 0)
     # to find the extra translation needed to remove black voxels in that corner
@@ -164,7 +170,9 @@ def inv_matrix(shape, theta, r):
     extraT = np.eye(4)
     extraT[:3, -1] = -1 * np.min(coords[idx], axis=0)[:3]
 
-    M = np.linalg.multi_dot([extraT, extraFlipZ, finalT, R, MO])
+    M_list = [extraT] + M_list
+
+    M = np.linalg.multi_dot(M_list)
     M_inv = np.linalg.inv(M)
 
     # in the transformed space, iterate over the pixels around the corner
@@ -182,10 +190,16 @@ def inv_matrix(shape, theta, r):
 
     final_shape = tuple(np.max(coords[idx, :3].astype(np.int64), axis=0) + 1)
 
+    if view == 'r':
+        # cancel extra flip along Z
+        M_list = [final_flip_Z] + M_list
+        M = np.linalg.multi_dot(M_list)
+        M_inv = np.linalg.inv(M)
+
     return M_inv, final_shape
 
 
-def transform(array, M_inv, output_shape, view, offset=None):
+def transform(array, M_inv, output_shape, offset=None):
     temp_M_inv = np.copy(M_inv)
     if offset is not None:
         temp_M_inv[:3, -1] += offset
@@ -194,17 +208,13 @@ def transform(array, M_inv, output_shape, view, offset=None):
     transformed = ndimage.affine_transform(
         array, temp_M_inv, output_shape=output_shape)
 
-    if view == 'r':
-        # cancel extra flip along Z
-        transformed = np.flip(transformed, -1)
-
     # view sample from the front side
     transformed = np.flip(transformed, 0)
 
     return transformed
 
 
-def sliced_transform(array, M_inv, final_shape, view, n=8):
+def sliced_transform(array, M_inv, final_shape, n=8):
     final_shape = np.array(final_shape)
 
     stripe_height = final_shape[-1] // n
@@ -223,7 +233,7 @@ def sliced_transform(array, M_inv, final_shape, view, n=8):
         offset = transform_coords(M_inv, [0, 0, current_z])
         offset = np.squeeze(offset) - offset_offset
 
-        yield transform(array, M_inv, output_shape, view, offset)
+        yield transform(array, M_inv, output_shape, offset)
         current_z += h
 
 
@@ -233,7 +243,13 @@ def main():
     infile = InputFile(args.input_file)
     ashape = np.flipud(np.array(infile.shape))  # X, Y, Z order
 
-    M_inv, final_shape = inv_matrix(ashape, args.theta, args.ratio)
+    M_inv, final_shape = inv_matrix(
+        shape=ashape,
+        theta=args.theta,
+        r=args.ratio,
+        direction=args.direction,
+        view=args.view
+    )
 
     logger.info('input_shape: {}, output_shape: {}'
                 .format(infile.shape, tuple(final_shape)))
@@ -246,9 +262,6 @@ def main():
     logger.info('loading {}'.format(args.input_file))
     a = infile.whole().T  # X, Y, Z order
 
-    if args.direction == 'l':
-        a = np.flip(a, -1)  # sample moving right to left
-
     output_dir = os.path.dirname(args.output_file)
     if output_dir:
         os.makedirs(output_dir, exist_ok=True)
@@ -257,7 +270,7 @@ def main():
     bigtiff = total_byte_size > 2 ** 31 - 1
 
     if args.slices is None:
-        t = transform(a, M_inv, final_shape, args.view)
+        t = transform(a, M_inv, final_shape)
         logger.info('saving to {}'.format(args.output_file))
         tiff.imsave(args.output_file, t.T, bigtiff=bigtiff)
         return
@@ -266,7 +279,7 @@ def main():
         os.remove(args.output_file)
 
     i = 0
-    for t in sliced_transform(a, M_inv, final_shape, args.view, args.slices):
+    for t in sliced_transform(a, M_inv, final_shape, args.slices):
         i += 1
         logger.info('saving slice {}/{} to {}'.format(
             i, args.slices, args.output_file))

@@ -10,7 +10,9 @@ test_vectors = [
         {
             'shape': (2048, 2048, 3005),
             'theta': 45,
-            'r': 5.9911
+            'r': 5.9911,
+            'direction': 'l',
+            'view': 'l',
         },
         (26897, 2048, 1447)
     ],
@@ -33,12 +35,12 @@ class TestDualspimReslice(unittest.TestCase):
         for i in range(input_a.shape[-1]):
             input_a[..., i] = i
 
-        M_inv, final_shape = dsr.inv_matrix(input_a.shape, 45, 6)
+        M_inv, final_shape = dsr.inv_matrix(input_a.shape, 45, 6, 'l', 'l')
 
-        tr = dsr.transform(input_a, M_inv, final_shape, 'l')
+        tr = dsr.transform(input_a, M_inv, final_shape)
         sliced_tr = np.zeros(final_shape, input_a.dtype)
         curr_z = 0
-        for t in dsr.sliced_transform(input_a, M_inv, final_shape, 'l'):
+        for t in dsr.sliced_transform(input_a, M_inv, final_shape):
             sliced_tr[..., curr_z:curr_z + t.shape[-1]] = t
             curr_z += t.shape[-1]
 
