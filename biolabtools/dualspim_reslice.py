@@ -155,7 +155,6 @@ def inv_matrix(shape, theta, r, direction, view):
 
     # check that the 8 corners in the original stack are within the
     # transformed volume. Direction: forward (original -> transformed)
-    xx, yy, zz = map(np.ndarray.flatten, np.meshgrid([0, 1], [0, 1], [0, 1]))
     coords = grid_to_coords([0, 1], [0, 1], [0, 1]) * (shape - 1)
     transformed_coords = transform_coords(M, coords).astype(np.int64)
 
