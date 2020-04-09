@@ -232,7 +232,7 @@ def transform(array, M_inv, output_shape, offset=None):
 
     logger.info('applying transform...')
     transformed = ndimage.affine_transform(
-        array, temp_M_inv, output_shape=output_shape)
+        array, temp_M_inv, output_shape=output_shape, prefilter=False)
 
     # view sample from the front side
     transformed = np.flip(transformed, 0)
