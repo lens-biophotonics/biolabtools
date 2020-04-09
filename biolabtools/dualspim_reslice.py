@@ -305,8 +305,9 @@ def main():
                 .format(infile.shape, tuple(final_shape)))
 
     if os.path.exists(args.output_file):
-        logger.error('Output file {} already exists (use -f to force)')
+        logger.warning('Output file {} already exists'.format(args.output_file))
         if not args.force:
+            logger.error('(use -f to force)')
             return
 
     logger.info('loading {}'.format(args.input_file))
