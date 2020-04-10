@@ -69,7 +69,7 @@ def inv_matrix(shape, theta, r, direction, view):
 
     Parameters
     ----------
-    shape : tuple
+    shape : sequence
             input shape, in (X, Y, Z) order
     theta : float
             rotation angle (degrees)
@@ -284,6 +284,7 @@ def sliced_transform(array, M_inv, output_shape, n=8):
     for h, o_from, o_to in zip(heights, offsets_from, offsets_to):
         temp_shape = np.copy(output_shape)
         temp_shape[-1] = h
+        temp_shape = tuple(temp_shape)
 
         coords = np.c_[o_from, o_to]
 
