@@ -329,7 +329,8 @@ def _sliced_transform(q, array, M_inv, output_shape, n=8):
         a = array[idx0, idx1, idx2]
 
         tr = transform(a, M_inv, temp_shape, offset)
-        q.put(tr)
+        if tr.size:
+            q.put(tr)
         current_z += h
 
     q.put(None)
