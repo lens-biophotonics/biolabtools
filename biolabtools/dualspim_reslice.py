@@ -267,22 +267,46 @@ def sliced_transform(array, M_inv, output_shape, n=8):
     output_shape = np.array(output_shape)
 
     stripe_height = output_shape[-1] // n
-    remainder = output_shape[-1] % n
 
-    top_edges = np.linspace(0, (n - 1) * stripe_height, n)
-    heights = [stripe_height] * len(top_edges)
-    heights[-1] += remainder
+    top_edges = np.linspace(0, n * stripe_height, n + 1)
+    bottom_edges = top_edges + stripe_height - 1
+    bottom_edges[-1] = output_shape[2] - 1
+    coords_from = grid_to_coords(0, 0, top_edges)
+    coords_to = grid_to_coords(output_shape[0] - 1, output_shape[1] - 1,
+                               bottom_edges)
+    offsets_from = transform_coords(M_inv, coords_from)
+    offsets_to = transform_coords(M_inv, coords_to)
+
+    heights = bottom_edges - top_edges + 1
 
     current_z = 0
     offset_offset = np.squeeze(transform_coords(M_inv, [0, 0, 0]))
-    for h in heights:
+    for h, o_from, o_to in zip(heights, offsets_from, offsets_to):
         temp_shape = np.copy(output_shape)
         temp_shape[-1] = h
 
-        offset = transform_coords(M_inv, [0, 0, current_z])
-        offset = np.squeeze(offset) - offset_offset
+        coords = np.c_[o_from, o_to]
 
-        yield transform(array, M_inv, temp_shape, offset)
+        coords_min = np.min(coords, axis=1) - offset_offset
+        coords_max = np.max(coords, axis=1)
+
+        coords_min[coords_min < 0] = 0
+        idx = coords_max < 0
+        coords_max[idx] = output_shape[idx]
+
+        offset = transform_coords(M_inv, [0, 0, current_z])
+        offset = np.squeeze(offset) - offset_offset - coords_min
+
+        coords_min = coords_min.astype(np.int64)
+        coords_max = np.ceil(coords_max).astype(np.int64) + 1
+
+        idx0 = slice(coords_min[0], coords_max[0])
+        idx1 = slice(coords_min[1], coords_max[1])
+        idx2 = slice(coords_min[2], coords_max[2])
+
+        a = array[idx0, idx1, idx2]
+
+        yield transform(a, M_inv, temp_shape, offset)
         current_z += h
 
 

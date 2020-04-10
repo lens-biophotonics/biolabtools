@@ -37,13 +37,13 @@ class TestDualspimReslice(unittest.TestCase):
 
         M_inv, final_shape = dsr.inv_matrix(input_a.shape, 45, 6, 'l', 'l')
 
-        tr = dsr.transform(input_a, M_inv, final_shape)
         sliced_tr = np.zeros(final_shape, input_a.dtype)
         curr_z = 0
         for t in dsr.sliced_transform(input_a, M_inv, final_shape):
             sliced_tr[..., curr_z:curr_z + t.shape[-1]] = t
             curr_z += t.shape[-1]
 
+        tr = dsr.transform(input_a, M_inv, final_shape)
         np.testing.assert_array_almost_equal(tr, sliced_tr, decimal=0)
 
 
