@@ -3,6 +3,8 @@ import math
 import time
 import logging
 import argparse
+import threading
+from queue import Queue
 
 import coloredlogs
 
@@ -267,6 +269,22 @@ def sliced_transform(array, M_inv, output_shape, n=8):
     transformed : :class:`numpy.ndarray`
               The transformed slice.
     """
+    q = Queue(maxsize=1)
+    t = threading.Thread(target=_sliced_transform, args=[
+        q, array, M_inv, output_shape, n
+    ])
+    t.start()
+
+    while True:
+        got = q.get()
+        if got is None:
+            break
+        yield got
+
+    t.join()
+
+
+def _sliced_transform(q, array, M_inv, output_shape, n=8):
     output_shape = np.array(output_shape)
 
     stripe_height = output_shape[-1] // n
@@ -310,8 +328,11 @@ def sliced_transform(array, M_inv, output_shape, n=8):
 
         a = array[idx0, idx1, idx2]
 
-        yield transform(a, M_inv, temp_shape, offset)
+        tr = transform(a, M_inv, temp_shape, offset)
+        q.put(tr)
         current_z += h
+
+    q.put(None)
 
 
 def main():
