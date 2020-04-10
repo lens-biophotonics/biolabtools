@@ -117,7 +117,7 @@ def inv_matrix(shape, theta, r, direction, view):
     T = [0, 0, 0]
     R = np.eye(3)
     Z = [1, 1, r]  # make voxel isotropic
-    S = [0, r * abs(math.tan(theta)), 0]
+    S = [0, r / abs(math.tan(theta)), 0]
 
     MO = affines.compose(T, R, Z, S)
 
