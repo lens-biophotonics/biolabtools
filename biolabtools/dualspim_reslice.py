@@ -100,19 +100,6 @@ def inv_matrix(shape, theta, r, direction, view):
     costheta = math.cos(theta)
     sintheta = math.sin(theta)
 
-    Dr = (shape[2] - 1) * r
-
-    sheared_shape = np.array(shape, dtype=np.float64)
-    sheared_shape[0] += Dr
-    sheared_shape[2] = Dr
-
-    final_shape = [
-        shape[0] * abs(costheta) + sheared_shape[2] / abs(sintheta),
-        shape[1],
-        shape[0] * abs(sintheta),
-    ]
-    final_shape = np.ceil(np.abs(final_shape)).astype(np.int64)
-
     # transform to objective reference system
     T = [0, 0, 0]
     R = np.eye(3)
@@ -120,6 +107,19 @@ def inv_matrix(shape, theta, r, direction, view):
     S = [0, r / abs(math.tan(theta)), 0]
 
     MO = affines.compose(T, R, Z, S)
+
+    temp = shape.copy()
+    temp[-1] -= 1
+    coords = grid_to_coords(*list(temp))
+    tr_coords = transform_coords(MO, coords).squeeze()
+    sheared_shape = tr_coords
+
+    final_shape = [
+        shape[0] * abs(costheta) + sheared_shape[2] / abs(sintheta),
+        shape[1],
+        shape[0] * abs(sintheta),
+    ]
+    final_shape = np.ceil(np.abs(final_shape)).astype(np.int64)
 
     tempR = np.array([
         [costheta, 0, -sintheta, 0],
