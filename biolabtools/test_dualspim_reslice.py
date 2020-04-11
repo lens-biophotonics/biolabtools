@@ -8,13 +8,13 @@ import biolabtools.dualspim_reslice as dsr
 test_vectors = [
     [
         {
-            'shape': (2048, 2048, 3005),
-            'theta': 45,
-            'r': 5.9911,
+            'shape': (256, 256, 100),
+            'theta': 35,
+            'r': 2,
             'direction': 'l',
             'view': 'l',
         },
-        (26897, 2048, 1447)
+        (555, 256, 147)
     ],
 ]
 
@@ -27,7 +27,7 @@ class TestDualspimReslice(unittest.TestCase):
         final_shape = value[1]
 
         _, ret_shape = dsr.inv_matrix(**params)
-        self.assertEqual(final_shape, ret_shape)
+        np.testing.assert_array_equal(final_shape, ret_shape)
 
     def testSlicedTransform(self):
         n = 128

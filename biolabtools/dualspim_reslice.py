@@ -96,6 +96,11 @@ def inv_matrix(shape, theta, r, direction, view):
     """
     shape = np.array(shape)
 
+    initial_flip_Z = np.eye(4)
+    if direction == 'l':  # sample moving from right to left
+        initial_flip_Z[2, -1] = shape[2] - 1
+        initial_flip_Z[2, 2] = -1
+
     theta = -theta * np.pi / 180
     costheta = math.cos(theta)
     sintheta = math.sin(theta)
@@ -107,19 +112,12 @@ def inv_matrix(shape, theta, r, direction, view):
     S = [0, r / abs(math.tan(theta)), 0]
 
     MO = affines.compose(T, R, Z, S)
+    M_list = [MO, initial_flip_Z]
 
-    temp = shape.copy()
-    temp[-1] -= 1
-    coords = grid_to_coords(*list(temp))
-    tr_coords = transform_coords(MO, coords).squeeze()
-    sheared_shape = tr_coords
-
-    final_shape = [
-        shape[0] * abs(costheta) + sheared_shape[2] / abs(sintheta),
-        shape[1],
-        shape[0] * abs(sintheta),
-    ]
-    final_shape = np.ceil(np.abs(final_shape)).astype(np.int64)
+    temp = shape - 1
+    coords = grid_to_coords([0, temp[0]], [0, temp[1]], [0, temp[2]])
+    tr_coords = transform_coords(np.linalg.multi_dot(M_list), coords)
+    sheared_shape = np.max(tr_coords, axis=0) - np.min(tr_coords, axis=0) + 1
 
     tempR = np.array([
         [costheta, 0, -sintheta, 0],
@@ -138,71 +136,35 @@ def inv_matrix(shape, theta, r, direction, view):
     # rotation around Y axis relative to center
     R = np.linalg.multi_dot([tempT, tempR, tempT2])
 
+    M_list = [R] + M_list
+
+    tr_coords = transform_coords(np.linalg.multi_dot(M_list), coords)
+    final_shape = np.max(tr_coords, axis=0) - np.min(tr_coords, axis=0) + 1
+
     # final translation to center output in the "viewport"
     finalT = np.eye(4, 4)
-    diff_shape = final_shape - sheared_shape
-    finalT[:3, -1] = diff_shape / 2
+    finalT[:3, -1] = -1 * np.min(tr_coords, axis=0)
 
-    initial_flip_Z = np.eye(4)
-    if direction == 'l':  # sample moving from right to left
-        initial_flip_Z[2, -1] = shape[2] - 1
-        initial_flip_Z[2, 2] = -1
+    M_list = [finalT, R, MO, initial_flip_Z]
 
-    final_flip_Z = np.eye(4)
-    final_flip_Z[2, -1] = final_shape[2] - 1
-    final_flip_Z[2, 2] = -1
+    if view == 'l':
+        final_flip_Z = np.eye(4)
+        final_flip_Z[2, -1] = final_shape[2] - 1
+        final_flip_Z[2, 2] = -1
 
-    M_list = [final_flip_Z, finalT, R, MO, initial_flip_Z]
-    M = np.linalg.multi_dot(M_list)
-    M_inv = np.linalg.inv(M)
-
-    # check that the 8 corners in the original stack are within the
-    # transformed volume. Direction: forward (original -> transformed)
-    coords = grid_to_coords([0, 1], [0, 1], [0, 1]) * (shape - 1)
-    transformed_coords = transform_coords(M, coords).astype(np.int64)
-
-    cond = (0 <= transformed_coords) & (transformed_coords < final_shape)
-    if not cond.all():
-        raise RuntimeError('Original corners outside transformed volume')
-
-    # in the transformed space, iterate over the pixels around (0, 0, 0)
-    # to find the extra translation needed to remove black voxels in that corner
-    # Direction: backward (transformed -> original)
-    rng = np.arange(0, 10)
-    coords = grid_to_coords(rng, rng, rng)
-    transformed_coords = transform_coords(M_inv, coords)
-
-    cond = ((0 <= transformed_coords)
-            & (transformed_coords <= (shape - 1)))
-    idx = np.all(cond, axis=-1)
-    extraT = np.eye(4)
-    extraT[:3, -1] = -1 * np.min(coords[idx], axis=0)[:3]
-
-    M_list = [extraT] + M_list
-
-    M = np.linalg.multi_dot(M_list)
-    M_inv = np.linalg.inv(M)
-
-    # in the transformed space, iterate over the pixels around the corner
-    # opposite to the origin (0, 0, 0) to refine final_shape
-    # Direction: backward (transformed -> original)
-
-    # 3 is to preserve homogeneous coordinate
-    coords = np.c_[coords, np.ones(coords.shape[0])]  # homogeneous coord
-    coords = (np.r_[final_shape, 3] - 1 - coords)
-    transformed_coords = transform_coords(M_inv, coords)
-
-    cond = ((0 <= transformed_coords)
-            & (transformed_coords <= (shape - 1)))
-    idx = np.all(cond, axis=-1)
-
-    final_shape = tuple(np.max(coords[idx, :3].astype(np.int64), axis=0) + 1)
-
-    if view == 'r':
-        # cancel extra flip along Z
         M_list = [final_flip_Z] + M_list
-        M = np.linalg.multi_dot(M_list)
-        M_inv = np.linalg.inv(M)
+
+    # view sample from the front side
+    flip_X = np.eye(4)
+    flip_X[0, -1] = final_shape[0] - 1
+    flip_X[0, 0] = -1
+
+    M_list = [flip_X] + M_list
+
+    M = np.linalg.multi_dot(M_list)
+    M_inv = np.linalg.inv(M)
+
+    final_shape = final_shape.astype(np.int64)
 
     return M_inv, final_shape
 
@@ -238,9 +200,6 @@ def transform(array, M_inv, output_shape, offset=None):
     transformed = ndimage.affine_transform(
         array, temp_M_inv, output_shape=output_shape, prefilter=False)
     logger.info('transform done. Took: {:.1f}s'.format(time.time() - t))
-
-    # view sample from the front side
-    transformed = np.flip(transformed, 0)
 
     return transformed
 
@@ -309,7 +268,7 @@ def _sliced_transform(q, array, M_inv, output_shape, n=8):
 
         coords = np.c_[o_from, o_to]
 
-        coords_min = np.min(coords, axis=1) - offset_offset
+        coords_min = np.min(coords, axis=1)
         coords_max = np.max(coords, axis=1)
 
         coords_min[coords_min < 0] = 0
