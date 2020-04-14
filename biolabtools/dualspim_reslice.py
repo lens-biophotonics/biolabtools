@@ -1,5 +1,6 @@
 import os
 import math
+import time
 import logging
 import argparse
 
@@ -231,8 +232,10 @@ def transform(array, M_inv, output_shape, offset=None):
         temp_M_inv[:3, -1] += offset
 
     logger.info('applying transform...')
+    t = time.time()
     transformed = ndimage.affine_transform(
         array, temp_M_inv, output_shape=output_shape, prefilter=False)
+    logger.info('transform done. Took: {:.1f}s'.format(time.time() - t))
 
     # view sample from the front side
     transformed = np.flip(transformed, 0)
