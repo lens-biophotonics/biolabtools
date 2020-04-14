@@ -95,11 +95,7 @@ def inv_matrix(shape, theta, r, direction, view):
             The shape of the transformed output, in (X, Y, Z) order
     """
     shape = np.array(shape)
-
-    initial_flip_Z = np.eye(4)
-    if direction == 'l':  # sample moving from right to left
-        initial_flip_Z[2, -1] = shape[2] - 1
-        initial_flip_Z[2, 2] = -1
+    edge = shape - 1
 
     theta = -theta * np.pi / 180
     costheta = math.cos(theta)
@@ -112,12 +108,13 @@ def inv_matrix(shape, theta, r, direction, view):
     S = [0, r / abs(math.tan(theta)), 0]
 
     MO = affines.compose(T, R, Z, S)
-    M_list = [MO, initial_flip_Z]
 
-    temp = shape - 1
-    coords = grid_to_coords([0, temp[0]], [0, temp[1]], [0, temp[2]])
-    tr_coords = transform_coords(np.linalg.multi_dot(M_list), coords)
-    sheared_shape = np.max(tr_coords, axis=0) - np.min(tr_coords, axis=0) + 1
+    M_list = [S, Z]
+    M = np.linalg.multi_dot(M_list)
+
+    corners = grid_to_coords([0, edge[0]], [0, edge[1]], [0, edge[2]])
+    tr_corners = transform_coords(M, corners)
+    sheared_size = np.max(tr_corners, axis=0) - np.min(tr_corners, axis=0)
 
     tempR = np.array([
         [costheta, 0, -sintheta, 0],
@@ -126,7 +123,7 @@ def inv_matrix(shape, theta, r, direction, view):
         [0, 0, 0, 1],
     ])
 
-    center = sheared_shape / 2
+    center = sheared_size / 2
 
     tempT = np.eye(4, 4)
     tempT[:3, -1] = center
@@ -136,35 +133,91 @@ def inv_matrix(shape, theta, r, direction, view):
     # rotation around Y axis relative to center
     R = np.linalg.multi_dot([tempT, tempR, tempT2])
 
-    M_list = [R] + M_list
+    M_list = [R, MO]
 
-    tr_coords = transform_coords(np.linalg.multi_dot(M_list), coords)
-    final_shape = np.max(tr_coords, axis=0) - np.min(tr_coords, axis=0) + 1
+    M = np.linalg.multi_dot(M_list)
+
+    tr_corners = transform_coords(M, corners[[0, 3]])
+    final_size = np.max(tr_corners, axis=0) - np.min(tr_corners, axis=0)
+    final_shape = final_size.astype(np.int64)
+    final_shape[1] = shape[1]
 
     # final translation to center output in the "viewport"
     finalT = np.eye(4, 4)
-    finalT[:3, -1] = -1 * np.min(tr_coords, axis=0)
+    finalT[:3, -1] = -1 * np.min(tr_corners, axis=0)
 
-    M_list = [finalT, R, MO, initial_flip_Z]
+    M_list = [finalT] + M_list
 
+    M = np.linalg.multi_dot(M_list)
+    M_inv = np.linalg.inv(M)
+
+    tr_corners = transform_coords(M, corners[[0, 3]])
+    tr_corners -= np.min(tr_corners, axis=0)
+    temp_corners = np.ceil(tr_corners)
+
+    final_size = np.max(temp_corners, axis=0)
+    final_shape = final_size.astype(np.int64)
+    final_shape[1] = shape[1]
+
+    # correct crop at corners
+    # =======================
+    rng = np.arange(0, 10)
+
+    coords = grid_to_coords(rng, 0, final_shape[2] - 1 - rng)
+    transformed_coords = transform_coords(M_inv, coords)
+
+    cond = ((0 <= transformed_coords)
+            & (transformed_coords <= (shape - 1)))
+    idx = np.all(cond, axis=-1)
+
+    if idx.any():
+        m = transformed_coords[idx].min(axis=0)
+        valid = (0 <= m) & (m <= shape - 1)
+        correction = m
+        if valid.any():
+            correction[valid] = 0
+
+        M[:3, -1] += correction
+        M_inv = np.linalg.inv(M)
+
+    transformed_coords = transform_coords(M_inv, coords)
+
+    cond = ((0 <= transformed_coords)
+            & (transformed_coords <= (shape - 1)))
+    idx = np.all(cond, axis=-1)
+
+    shift_X = 0
+    shift_Z = 0
+    if idx.any():
+        shift_X = np.min(coords[idx, 0])
+        shift_Z = final_shape[2] - 1 - np.max(coords[idx, 2])
+
+    M[0, -1] += -shift_X
+    M[2, -1] += shift_Z
+    final_shape[0] += -shift_X
+    final_shape[2] += -shift_Z
+
+    # =======================
+
+    # Combine M with all other flips
+
+    initial_flip_Z = np.eye(4)
+    if direction == 'l':  # sample moving from right to left
+        initial_flip_Z[2, -1] = edge[2]
+        initial_flip_Z[2, 2] = -1
+
+    final_flip_Z = np.eye(4)
     if view == 'l':
-        final_flip_Z = np.eye(4)
         final_flip_Z[2, -1] = final_shape[2] - 1
         final_flip_Z[2, 2] = -1
-
-        M_list = [final_flip_Z] + M_list
 
     # view sample from the front side
     flip_X = np.eye(4)
     flip_X[0, -1] = final_shape[0] - 1
     flip_X[0, 0] = -1
 
-    M_list = [flip_X] + M_list
-
-    M = np.linalg.multi_dot(M_list)
+    M = np.linalg.multi_dot([flip_X, final_flip_Z, M, initial_flip_Z])
     M_inv = np.linalg.inv(M)
-
-    final_shape = final_shape.astype(np.int64)
 
     return M_inv, final_shape
 
@@ -274,11 +327,11 @@ def _sliced_transform(q, array, M_inv, output_shape, n=8):
         coords_min[coords_min < 0] = 0
         idx = coords_max < 0
         coords_max[idx] = output_shape[idx]
+        coords_min = coords_min.astype(np.int64)
 
         offset = transform_coords(M_inv, [0, 0, current_z])
         offset = np.squeeze(offset) - offset_offset - coords_min
 
-        coords_min = coords_min.astype(np.int64)
         coords_max = np.ceil(coords_max).astype(np.int64) + 1
 
         idx0 = slice(coords_min[0], coords_max[0])
@@ -318,15 +371,15 @@ def main():
             logger.error('(use -f to force)')
             return
 
-    logger.info('loading {}'.format(args.input_file))
-    a = infile.whole().T  # X, Y, Z order
-
     output_dir = os.path.dirname(args.output_file)
     if output_dir:
         os.makedirs(output_dir, exist_ok=True)
 
     total_byte_size = np.asscalar(np.prod(final_shape) * infile.dtype.itemsize)
     bigtiff = total_byte_size > 2 ** 31 - 1
+
+    logger.info('loading {}'.format(args.input_file))
+    a = infile.whole().T  # X, Y, Z order
 
     if args.slices is None:
         t = transform(a, M_inv, final_shape)
