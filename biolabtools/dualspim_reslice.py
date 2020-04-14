@@ -11,7 +11,6 @@ import coloredlogs
 import numpy as np
 import skimage.external.tifffile as tiff
 
-from transforms3d import affines
 from scipy import ndimage
 
 from zetastitcher import InputFile
@@ -102,12 +101,11 @@ def inv_matrix(shape, theta, r, direction, view):
     sintheta = math.sin(theta)
 
     # transform to objective reference system
-    T = [0, 0, 0]
-    R = np.eye(3)
-    Z = [1, 1, r]  # make voxel isotropic
-    S = [0, r / abs(math.tan(theta)), 0]
+    Z = np.eye(4)  # zoom matrix
+    Z[2, 2] = r  # make voxel isotropic
 
-    MO = affines.compose(T, R, Z, S)
+    S = np.eye(4)  # shear matrix
+    S[0, 2] = 1 / abs(math.tan(theta))
 
     M_list = [S, Z]
     M = np.linalg.multi_dot(M_list)
@@ -133,7 +131,7 @@ def inv_matrix(shape, theta, r, direction, view):
     # rotation around Y axis relative to center
     R = np.linalg.multi_dot([tempT, tempR, tempT2])
 
-    M_list = [R, MO]
+    M_list = [R] + M_list
 
     M = np.linalg.multi_dot(M_list)
 

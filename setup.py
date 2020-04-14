@@ -60,7 +60,6 @@ setup(
         'coloredlogs',
         'psutil',
         'glymur',
-        'transforms3d',
         'zetastitcher',
     ],
 
