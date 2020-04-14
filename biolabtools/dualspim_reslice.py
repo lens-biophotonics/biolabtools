@@ -255,7 +255,8 @@ def transform(array, M_inv, output_shape, offset=None):
     logger.info('applying transform...')
     t = time.time()
     transformed = ndimage.affine_transform(
-        array, temp_M_inv, output_shape=output_shape, prefilter=False)
+        array, temp_M_inv, output_shape=output_shape, order=0,
+        prefilter=False)
     logger.info('transform done. Took: {:.1f}s'.format(time.time() - t))
 
     return transformed
