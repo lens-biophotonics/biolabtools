@@ -1,3 +1,4 @@
+import math
 import unittest
 from ddt import ddt, data
 
@@ -9,12 +10,22 @@ test_vectors = [
     [
         {
             'shape': (256, 256, 100),
-            'theta': 35,
+            'theta': 33,
             'r': 2,
             'direction': 'l',
             'view': 'l',
         },
-        (555, 256, 147)
+        (576, 256, 139)
+    ],
+    [
+        {
+            'shape': (256, 256, 100),
+            'theta': 45,
+            'r': 2,
+            'direction': 'l',
+            'view': 'l',
+        },
+        (460, 256, 181)
     ],
 ]
 
@@ -24,27 +35,51 @@ class TestDualspimReslice(unittest.TestCase):
     @data(*test_vectors)
     def testOutputShape(self, value):
         params = value[0]
-        final_shape = value[1]
+        theta = params['theta'] * np.pi / 180
+        shape = np.array(params['shape'])
+        edge = shape - 1
+        r = params['r']
+        expected_shape = np.array([
+            r * edge[2] / math.sin(theta) + edge[0] * math.cos(theta),
+            shape[1],
+            shape[0] * math.sin(theta)
+        ]).astype(np.int64)
 
-        _, ret_shape = dsr.inv_matrix(**params)
-        np.testing.assert_array_equal(final_shape, ret_shape)
+        for view in 'lr':
+            params['view'] = view
+            _, ret_shape = dsr.inv_matrix(**params)
+            np.testing.assert_almost_equal(value[1], expected_shape, decimal=0)
+            np.testing.assert_equal(value[1], ret_shape)
 
-    def testSlicedTransform(self):
-        n = 128
-        input_a = np.ones((n, n, 100), np.uint8)
+    @data(*test_vectors)
+    def testSlicedTransform(self, value):
+        params = value[0]
+        input_a = np.ones(params['shape'], np.uint8)
         for i in range(input_a.shape[-1]):
             input_a[..., i] = i
+        input_a[..., 0] = 1
 
-        M_inv, final_shape = dsr.inv_matrix(input_a.shape, 45, 6, 'l', 'l')
+        for view in 'lr':
+            params['view'] = view
+            M_inv, output_shape = dsr.inv_matrix(**params)
 
-        sliced_tr = np.zeros(final_shape, input_a.dtype)
-        curr_z = 0
-        for t in dsr.sliced_transform(input_a, M_inv, final_shape):
-            sliced_tr[..., curr_z:curr_z + t.shape[-1]] = t
-            curr_z += t.shape[-1]
+            sliced_tr = np.zeros(output_shape, input_a.dtype)
+            curr_z = 0
+            for t in dsr.sliced_transform(input_a, M_inv, output_shape):
+                sliced_tr[..., curr_z:curr_z + t.shape[-1]] = t
+                curr_z += t.shape[-1]
 
-        tr = dsr.transform(input_a, M_inv, final_shape)
-        np.testing.assert_array_almost_equal(tr, sliced_tr, decimal=0)
+            tr = dsr.transform(input_a, M_inv, output_shape)
+
+            np.testing.assert_array_almost_equal(tr, sliced_tr, decimal=0)
+
+            # check corners
+            if view == 'r':
+                self.assertTrue(np.all(tr[0, :, 0]))
+                self.assertTrue(np.all(tr[-1, :, -1]))
+            elif view == 'l':
+                self.assertTrue(np.all(tr[-1, :, 0]))
+                self.assertTrue(np.all(tr[0, :, -1]))
 
 
 if __name__ == '__main__':
