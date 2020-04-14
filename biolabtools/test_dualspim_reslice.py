@@ -11,7 +11,7 @@ test_vectors = [
         {
             'shape': (256, 256, 100),
             'theta': 33,
-            'r': 2,
+            'z': 2,
             'direction': 'l',
             'view': 'l',
         },
@@ -21,7 +21,7 @@ test_vectors = [
         {
             'shape': (256, 256, 100),
             'theta': 45,
-            'r': 2,
+            'z': 2,
             'direction': 'l',
             'view': 'l',
         },
@@ -38,9 +38,9 @@ class TestDualspimReslice(unittest.TestCase):
         theta = params['theta'] * np.pi / 180
         shape = np.array(params['shape'])
         edge = shape - 1
-        r = params['r']
+        z = params['z']
         expected_shape = np.array([
-            r * edge[2] / math.sin(theta) + edge[0] * math.cos(theta),
+            z * edge[2] / math.sin(theta) + edge[0] * math.cos(theta),
             shape[1],
             shape[0] * math.sin(theta)
         ]).astype(np.int64)

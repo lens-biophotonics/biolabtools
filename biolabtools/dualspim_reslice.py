@@ -30,8 +30,10 @@ def parse_args():
 
     parser.add_argument('-t', '--theta', type=float, required=True,
                         help='rotation angle (degrees)')
-    parser.add_argument('-r', '--ratio', type=float, required=True,
-                        help='z / xy ratio')
+    parser.add_argument('-z', type=float, default=1,
+                        help='zoom factor along z')
+    parser.add_argument('-xy', type=float, default=1,
+                        help='zoom factor along xy')
     parser.add_argument('-v', '--view', type=str, required=True,
                         choices={'l', 'r'})
     parser.add_argument('-d', '--direction', type=str, required=True,
@@ -65,7 +67,7 @@ def transform_coords(M, coords):
     return M.dot(coords.T).T[:, :3]
 
 
-def inv_matrix(shape, theta, r, direction, view):
+def inv_matrix(shape, theta, direction, view, z=1, xy=1):
     """
     Compute inverse coordinate transformation matrix.
 
@@ -75,8 +77,11 @@ def inv_matrix(shape, theta, r, direction, view):
             input shape, in (X, Y, Z) order
     theta : float
             rotation angle (degrees)
-    r : float
-        z / xy ratio
+    z : float
+        zoom factor along z
+
+    xy : float
+        zoom factor along xy
 
     direction : str
                 stage motion direction ('l' or 'r')
@@ -101,8 +106,8 @@ def inv_matrix(shape, theta, r, direction, view):
     sintheta = math.sin(theta)
 
     # transform to objective reference system
-    Z = np.eye(4)  # zoom matrix
-    Z[2, 2] = r  # make voxel isotropic
+    # zoom matrix
+    Z = [xy, xy, z, 1] * np.eye(4)
 
     S = np.eye(4)  # shear matrix
     S[0, 2] = 1 / abs(math.tan(theta))
@@ -149,13 +154,14 @@ def inv_matrix(shape, theta, r, direction, view):
     M = np.linalg.multi_dot(M_list)
     M_inv = np.linalg.inv(M)
 
-    tr_corners = transform_coords(M, corners[[0, 3]])
+    tr_corners = transform_coords(M, corners[[0, -1]])
     tr_corners -= np.min(tr_corners, axis=0)
     temp_corners = np.ceil(tr_corners)
 
     final_size = np.max(temp_corners, axis=0)
     final_shape = final_size.astype(np.int64)
-    final_shape[1] = shape[1]
+    if xy == 1:
+        final_shape[1] = shape[1]
 
     # correct crop at corners
     # =======================
@@ -355,9 +361,10 @@ def main():
     M_inv, final_shape = inv_matrix(
         shape=ashape,
         theta=args.theta,
-        r=args.ratio,
         direction=args.direction,
-        view=args.view
+        view=args.view,
+        z=args.z,
+        xy=args.xy
     )
 
     logger.info('input_shape: {}, output_shape: {}'
