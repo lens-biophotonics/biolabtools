@@ -5,6 +5,7 @@ import logging
 import argparse
 import threading
 from queue import Queue
+from pathlib import Path
 
 import coloredlogs
 
@@ -14,6 +15,8 @@ import skimage.external.tifffile as tiff
 from scipy import ndimage
 
 from zetastitcher import InputFile
+
+from biolabtools.convert_to_jp2ar import convert_to_jp2ar
 
 
 logger = logging.getLogger(__name__)
@@ -43,6 +46,15 @@ def parse_args():
     parser.add_argument('-s', '--slices', metavar='N', type=int, required=False,
                         help='perform transform in N slices, one at a time '
                              'to reduce memory requirements')
+
+    group = parser.add_argument_group('JPEG2000 Archive options')
+    group.add_argument('--ja', action='store_true', dest='jp2ar_enabled',
+                       help='enable conversion to JPEG2000 ZIP archives')
+    group.add_argument('-n', type=int, default=8, dest='nthreads',
+                       help='number of parallel threads')
+    group.add_argument('--jc', type=int, default=0, dest='jp2_compression',
+                       help='JPEG2000 compression')
+
     parser.add_argument('input_file', type=str)
     parser.add_argument('output_file', type=str)
 
@@ -385,7 +397,16 @@ def main():
     bigtiff = total_byte_size > 2 ** 31 - 1
 
     logger.info('loading {}'.format(args.input_file))
-    a = infile.whole().T  # X, Y, Z order
+
+    a = infile.whole()
+
+    if args.jp2ar_enabled:
+        p = Path(args.output_file).with_suffix('.zip')
+        logger.info('saving JP2000 ZIP archive to {}'.format(p))
+        convert_to_jp2ar(a, None, args.jp2_compression, args.nthreads,
+                         output_file=str(p))
+
+    a = a.T  # X, Y, Z order
 
     if args.slices is None:
         t = transform(a, M_inv, final_shape)
