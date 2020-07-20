@@ -400,35 +400,46 @@ def main():
 
     a = infile.whole()
 
+    threads = []
+
     if args.jp2ar_enabled:
         p = Path(args.output_file).with_suffix('.zip')
         logger.info('saving JP2000 ZIP archive to {}'.format(p))
-        convert_to_jp2ar(a, None, args.jp2_compression, args.nthreads,
-                         output_file=str(p))
+        jp2ar_thread = threading.Thread(target=convert_to_jp2ar, kwargs=dict(
+            input_data=a, output_dir=None, compression=args.jp2_compression,
+            nthreads=args.nthreads, temp_dir=None, output_file=str(p)))
+        jp2ar_thread.start()
+        threads.append(jp2ar_thread)
 
-    a = a.T  # X, Y, Z order
+    def worker():
+        if args.slices is None:
+            t = transform(a.T, M_inv, final_shape)  # X, Y, Z order
+            logger.info('saving to {}'.format(args.output_file))
+            tiff.imsave(args.output_file, t.T, bigtiff=bigtiff)
+            return
 
-    if args.slices is None:
-        t = transform(a, M_inv, final_shape)
-        logger.info('saving to {}'.format(args.output_file))
-        tiff.imsave(args.output_file, t.T, bigtiff=bigtiff)
-        return
+        if os.path.exists(args.output_file):
+            os.remove(args.output_file)
 
-    if os.path.exists(args.output_file):
-        os.remove(args.output_file)
+        i = 0
+        for t in sliced_transform(a, M_inv, final_shape, args.slices):
+            i += 1
+            logger.info('saving slice {}/{} to {}'.format(
+                i, args.slices, args.output_file))
 
-    i = 0
-    for t in sliced_transform(a, M_inv, final_shape, args.slices):
-        i += 1
-        logger.info('saving slice {}/{} to {}'.format(
-            i, args.slices, args.output_file))
+            t = t.T  # Z, Y, X order
 
-        t = t.T  # Z, Y, X order
+            # add dummy color axis to trick imsave
+            # (otherwise when size of Z is 3, it thinks it's an RGB image)
+            t = t[:, np.newaxis, ...]
+            tiff.imsave(args.output_file, t, append=True, bigtiff=bigtiff)
 
-        # add dummy color axis to trick imsave
-        # (otherwise when size of Z is 3, it thinks it's an RGB image)
-        t = t[:, np.newaxis, ...]
-        tiff.imsave(args.output_file, t, append=True, bigtiff=bigtiff)
+    transform_thread = threading.Thread(target=worker)
+    transform_thread.start()
+    threads.append(transform_thread)
+
+    for thread in threads:
+        thread.join()
 
 
 if __name__ == '__main__':
