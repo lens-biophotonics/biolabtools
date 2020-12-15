@@ -368,6 +368,12 @@ def _sliced_transform(q, array, M_inv, output_shape, n=8):
 def main():
     args = parse_args()
 
+    if os.path.exists(args.output_file):
+        logger.warning('Output file {} already exists'.format(args.output_file))
+        if not args.force:
+            logger.error('(use -f to force)')
+            return
+
     infile = InputFile(args.input_file)
     ashape = np.flipud(np.array(infile.shape))  # X, Y, Z order
 
@@ -382,12 +388,6 @@ def main():
 
     logger.info('input_shape: {}, output_shape: {}'
                 .format(infile.shape, tuple(final_shape)))
-
-    if os.path.exists(args.output_file):
-        logger.warning('Output file {} already exists'.format(args.output_file))
-        if not args.force:
-            logger.error('(use -f to force)')
-            return
 
     output_dir = os.path.dirname(args.output_file)
     if output_dir:
