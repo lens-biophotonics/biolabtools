@@ -60,6 +60,7 @@ setup(
         'coloredlogs',
         'psutil',
         'glymur',
+        'tifffile',
         'zetastitcher',
     ],
 

@@ -10,7 +10,7 @@ from pathlib import Path
 import coloredlogs
 
 import numpy as np
-import skimage.external.tifffile as tiff
+import tifffile as tiff
 
 from scipy import ndimage
 
@@ -415,7 +415,7 @@ def main():
         if args.slices is None:
             t = transform(a.T, M_inv, final_shape)  # X, Y, Z order
             logger.info('saving to {}'.format(args.output_file))
-            tiff.imsave(args.output_file, t.T, bigtiff=bigtiff)
+            tiff.imwrite(args.output_file, t.T, bigtiff=bigtiff)
             return
 
         if os.path.exists(args.output_file):
@@ -432,7 +432,7 @@ def main():
             # add dummy color axis to trick imsave
             # (otherwise when size of Z is 3, it thinks it's an RGB image)
             t = t[:, np.newaxis, ...]
-            tiff.imsave(args.output_file, t, append=True, bigtiff=bigtiff)
+            tiff.imwrite(args.output_file, t, append=True, bigtiff=bigtiff)
 
     transform_thread = threading.Thread(target=worker)
     transform_thread.start()
