@@ -20,8 +20,8 @@ def parse_args():
     parser.add_argument('input_file', help='input file')
     parser.add_argument('output_dir', help='output directory')
 
-    parser.add_argument('--zmin', type=int, required=True)
-    parser.add_argument('--zmax', help='inclusive', type=int, required=True)
+    parser.add_argument('--zmin', type=int, default=0)
+    parser.add_argument('--zmax', type=int)
     parser.add_argument('--prefix', type=str, default='',
                         help='prefix for output files')
 
@@ -41,7 +41,9 @@ def main():
     n_of_digits = math.ceil(math.log10(infile.shape[0]))
     fmt = '{}{:0' + str(n_of_digits) + '}.tiff'
 
-    for z in range(args.zmin, args.zmax + 1):
+    zmax = infile.nfrms if args.zmax is None else args.zmax
+
+    for z in range(args.zmin, zmax):
         fname = os.path.join(args.output_dir, fmt.format(args.prefix, z))
         logger.info(fname)
         tiff.imsave(fname, infile[z])
