@@ -6,6 +6,8 @@ with open("biolabtools/version.py") as fp:
     exec(fp.read(), version)
 __version__ = version['__version__']
 
+
+
 setup(
     name='biolabtools',
     version=__version__,
@@ -86,7 +88,6 @@ setup(
     entry_points={
         'console_scripts': [
             'convert_to_jp2ar = biolabtools.convert_to_jp2ar:main',
-            'tiffdir2tiff3d = biolabtools.tiffdir2tiff3d:main',
             'downscale_yml = biolabtools.downscale_yml:main',
             'extract_tiffs = biolabtools.extract_tiffs:main',
             'prepare_for_benchmarks = biolabtools.prepare_for_benchmarks:main',
@@ -94,7 +95,7 @@ setup(
             'he_colorize = biolabtools.he_colorize:main',
             'mip = biolabtools.mip:main',
             'bioretics_tar_to_3Dtiff = biolabtools.bioretics_tar_to_3Dtiff:main',
-            'stack2tiffs = biolabtools.stack2tiffs:main',
+            'stack2tiff = biolabtools.stack2tiff:main',
             'extract_channel = biolabtools.extract_channel:main',
             'sum_channels = biolabtools.sum_channels:main',
             'dualspim_reslice = biolabtools.dualspim_reslice:main',
