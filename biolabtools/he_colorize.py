@@ -4,7 +4,7 @@ import argparse
 
 import coloredlogs
 import numpy as np
-import skimage.external.tifffile as tiff
+import tifffile as tiff
 
 from zetastitcher import InputFile
 
@@ -68,8 +68,8 @@ def main():
         logger.info('saving to {}'.format(args.output_file))
         if infile.nchannels > 1:
             img_he = np.moveaxis(img_he, -3, -1)
-        tiff.imsave(args.output_file, (255 * img_he).astype(np.uint8),
-                    append=True, bigtiff=bigtiff)
+        tiff.imwrite(args.output_file, (255 * img_he).astype(np.uint8),
+                     append=True, bigtiff=bigtiff)
 
         curr_z = end_z
         if end_loop:
