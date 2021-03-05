@@ -33,6 +33,7 @@ def main():
     args = parse_args()
 
     infile = InputFile(args.input_file)
+    infile.squeeze = False
 
     total_byte_size = np.asscalar(np.prod(infile.shape) * infile.dtype.itemsize)
     bigtiff = total_byte_size > 2 ** 31 - 1
