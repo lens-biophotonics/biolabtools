@@ -46,6 +46,7 @@ def parse_args():
     parser.add_argument('-s', '--slices', metavar='N', type=int, required=False,
                         help='perform transform in N slices, one at a time '
                              'to reduce memory requirements')
+    parser.add_argument('-o', '--output_dir', type=str)
 
     group = parser.add_argument_group('JPEG2000 Archive options')
     group.add_argument('--ja', action='store_true', dest='jp2ar_enabled',
@@ -56,7 +57,6 @@ def parse_args():
                        help='JPEG2000 compression')
 
     parser.add_argument('input_file', type=str)
-    parser.add_argument('output_file', type=str)
 
     args = parser.parse_args()
 
@@ -368,13 +368,19 @@ def _sliced_transform(q, array, M_inv, output_shape, n=8):
 def main():
     args = parse_args()
 
-    if os.path.exists(args.output_file):
-        logger.warning('Output file {} already exists'.format(args.output_file))
+    input_file = Path(args.input_file)
+    output_dir = Path(args.output_dir)
+    output_file = (output_dir / input_file.name).with_suffix('.tiff')
+
+    if output_file.exists():
+        logger.warning('Output file {} already exists'.format(output_file))
         if not args.force:
             logger.error('(use -f to force)')
             return
 
-    infile = InputFile(args.input_file)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    infile = InputFile(input_file)
     ashape = np.flipud(np.array(infile.shape))  # X, Y, Z order
 
     M_inv, final_shape = inv_matrix(
@@ -389,21 +395,17 @@ def main():
     logger.info('input_shape: {}, output_shape: {}'
                 .format(infile.shape, tuple(final_shape)))
 
-    output_dir = os.path.dirname(args.output_file)
-    if output_dir:
-        os.makedirs(output_dir, exist_ok=True)
-
     total_byte_size = np.asscalar(np.prod(final_shape) * infile.dtype.itemsize)
     bigtiff = total_byte_size > 2 ** 31 - 1
 
-    logger.info('loading {}'.format(args.input_file))
+    logger.info('loading {}'.format(input_file))
 
     a = infile.whole()
 
     threads = []
 
     if args.jp2ar_enabled:
-        p = Path(args.output_file).with_suffix('.zip')
+        p = output_file.with_suffix('.zip')
         logger.info('saving JP2000 ZIP archive to {}'.format(p))
         jp2ar_thread = threading.Thread(target=convert_to_jp2ar, kwargs=dict(
             input_data=a, output_dir=None, compression=args.jp2_compression,
@@ -414,25 +416,23 @@ def main():
     def worker():
         if args.slices is None:
             t = transform(a.T, M_inv, final_shape)  # X, Y, Z order
-            logger.info('saving to {}'.format(args.output_file))
-            tiff.imwrite(args.output_file, t.T, bigtiff=bigtiff)
+            logger.info('saving to {}'.format(output_file))
+            tiff.imwrite(output_file, t.T, bigtiff=bigtiff)
             return
 
-        if os.path.exists(args.output_file):
-            os.remove(args.output_file)
+        output_file.unlink(missing_ok=True)  # remove file
 
         i = 0
         for t in sliced_transform(a, M_inv, final_shape, args.slices):
             i += 1
-            logger.info('saving slice {}/{} to {}'.format(
-                i, args.slices, args.output_file))
+            logger.info('saving slice {}/{} to {}'.format(i, args.slices, output_file))
 
             t = t.T  # Z, Y, X order
 
             # add dummy color axis to trick imsave
             # (otherwise when size of Z is 3, it thinks it's an RGB image)
             t = t[:, np.newaxis, ...]
-            tiff.imwrite(args.output_file, t, append=True, bigtiff=bigtiff)
+            tiff.imwrite(output_file, t, append=True, bigtiff=bigtiff)
 
     transform_thread = threading.Thread(target=worker)
     transform_thread.start()
