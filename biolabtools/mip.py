@@ -6,7 +6,7 @@ from math import ceil
 
 import coloredlogs
 import numpy as np
-import skimage.external.tifffile as tiff
+import tifffile as tiff
 
 from zetastitcher import InputFile
 

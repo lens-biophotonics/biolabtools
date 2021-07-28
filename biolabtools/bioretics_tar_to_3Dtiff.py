@@ -12,7 +12,7 @@ import threading
 import coloredlogs
 import imageio
 import numpy as np
-import skimage.external.tifffile as tiff
+import tifffile as tiff
 
 from zetastitcher import InputFile
 

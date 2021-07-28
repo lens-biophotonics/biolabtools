@@ -4,7 +4,7 @@ import argparse
 
 import coloredlogs
 import numpy as np
-import skimage.external.tifffile as tiff
+import tifffile as tiff
 
 import psutil
 
