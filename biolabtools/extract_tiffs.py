@@ -46,7 +46,7 @@ def main():
     for z in range(args.zmin, zmax):
         fname = os.path.join(args.output_dir, fmt.format(args.prefix, z))
         logger.info(fname)
-        tiff.imsave(fname, infile[z])
+        tiff.imwrite(fname, infile[z], compression='zlib')
 
 
 if __name__ == '__main__':

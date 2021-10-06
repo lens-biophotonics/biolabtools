@@ -88,7 +88,7 @@ def main():
     logger.info('saving to {}'.format(args.output_file))
     if args.channel is None and infile.nchannels > 1:
         mip = np.moveaxis(mip, -3, -1)
-    tiff.imsave(args.output_file, mip)
+    tiff.imwrite(args.output_file, mip, compression='zlib')
 
 
 if __name__ == '__main__':

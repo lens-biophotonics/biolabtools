@@ -35,7 +35,7 @@ def main():
     a = a[::-1]
 
     logger.info('writing to {}'.format(args.output_file))
-    tiff.imsave(args.output_file, a)
+    tiff.imwrite(args.output_file, a, compression='zlib')
 
 
 if __name__ == '__main__':

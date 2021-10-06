@@ -24,20 +24,12 @@ def parse_args():
 
     parser.add_argument('input_file', type=str)
 
-    parser.add_argument('-c', type=str, default=0, dest='compression',
-                        choices=[str(i) for i in range(10)] + ['lzma'],
-                        help='compression')
     parser.add_argument('-f', action='store_true', help='force overwriting output file')
 
     parser.add_argument('--ch', type=int, default=-1, dest='channel',
                         help='channel')
 
     args = parser.parse_args()
-
-    try:
-        args.compression = int(args.compression)
-    except ValueError:
-        pass
 
     return args
 
@@ -87,7 +79,7 @@ def main():
             a = np.moveaxis(a, -3, -1)
 
         logger.info(f'saving output to {output_file}')
-        tiff.imwrite(output_file, a, append=True, bigtiff=bigtiff, compress=args.compression)
+        tiff.imwrite(output_file, a, append=True, bigtiff=bigtiff, compression='zlib')
 
 
 if __name__ == '__main__':

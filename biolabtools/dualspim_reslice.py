@@ -417,7 +417,7 @@ def main():
         if args.slices is None:
             t = transform(a.T, M_inv, final_shape)  # X, Y, Z order
             logger.info('saving to {}'.format(output_file))
-            tiff.imwrite(output_file, t.T, bigtiff=bigtiff)
+            tiff.imwrite(output_file, t.T, bigtiff=bigtiff, compression='zlib')
             return
 
         output_file.unlink(missing_ok=True)  # remove file
@@ -432,7 +432,7 @@ def main():
             # add dummy color axis to trick imsave
             # (otherwise when size of Z is 3, it thinks it's an RGB image)
             t = t[:, np.newaxis, ...]
-            tiff.imwrite(output_file, t, append=True, bigtiff=bigtiff)
+            tiff.imwrite(output_file, t, append=True, bigtiff=bigtiff, compression='zlib')
 
     transform_thread = threading.Thread(target=worker)
     transform_thread.start()

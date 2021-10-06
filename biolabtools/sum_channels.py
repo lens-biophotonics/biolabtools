@@ -72,7 +72,7 @@ def main():
         img = np.sum(img, axis=1).astype(np.uint16)
 
         logger.info('saving to {}'.format(args.output_file))
-        tiff.imsave(args.output_file, img, append=True, bigtiff=bigtiff)
+        tiff.imwrite(args.output_file, img, append=True, bigtiff=bigtiff, compression='zlib')
 
         curr_z = end_z
         if end_loop:

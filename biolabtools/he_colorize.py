@@ -70,7 +70,7 @@ def main():
         if infile.nchannels > 1:
             img_he = np.moveaxis(img_he, -3, -1)
         tiff.imwrite(args.output_file, (255 * img_he).astype(np.uint8),
-                     append=True, bigtiff=bigtiff)
+                     append=True, bigtiff=bigtiff, compression='zlib')
 
         curr_z = end_z
         if end_loop:
