@@ -10,7 +10,6 @@ import coloredlogs
 import tifffile as tiff
 
 from zetastitcher import InputFile
-from zetastitcher.io.tiffwrapper import TiffWrapper
 
 
 logger = logging.getLogger(__name__)
@@ -25,6 +24,7 @@ def parse_args():
     parser.add_argument('input_file', type=str)
 
     parser.add_argument('-f', action='store_true', help='force overwriting output file')
+    parser.add_argument('-o', dest='output_dir', type=str, help='output directory')
 
     parser.add_argument('--ch', type=int, default=-1, dest='channel',
                         help='channel')
@@ -41,11 +41,19 @@ def main():
     if args.channel != -1:
         infile.channel = args.channel
 
-    if type(infile.wrapper) is TiffWrapper:
-        if infile.wrapper.glob_mode is False:
-            raise ValueError('Input file is already a TIFF')
+    input_file = Path(args.input_file)
 
-    output_file = Path(args.input_file).with_suffix('.tiff')
+    if args.output_dir is None:
+        output_dir = input_file.parent
+    else:
+        output_dir = Path(args.output_dir)
+
+    output_file = (output_dir / input_file.name).with_suffix('.tiff')
+
+    if output_file == input_file:
+        logger.error('Input and output are the same file')
+        sys.exit(-1)
+
     if output_file.exists() and not args.f:
         logger.error(f'Output file {output_file} already exists. Use -f to force.')
         sys.exit(-1)
