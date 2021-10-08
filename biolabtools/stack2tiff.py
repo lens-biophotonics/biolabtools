@@ -1,5 +1,4 @@
 import sys
-import psutil
 import logging
 import argparse
 
@@ -60,10 +59,12 @@ def main():
 
     bigtiff = infile.array_size > 2 ** 31 - 1
 
-    ram = psutil.virtual_memory().available
+    ram = 4 * 1024 ** 3  # 4 GiB
 
     # size in bytes of an xy plane (including channels) (float32)
     n_frames_in_ram = int(ram / infile.frame_size / 1.8)
+    if n_frames_in_ram == 0:
+        n_frames_in_ram = 1
 
     n_loops = infile.nfrms // n_frames_in_ram
 
