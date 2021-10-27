@@ -46,6 +46,7 @@ def main():
         output_dir = input_file.parent
     else:
         output_dir = Path(args.output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
 
     output_file = (output_dir / input_file.name).with_suffix('.tiff')
 
