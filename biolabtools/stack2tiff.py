@@ -48,7 +48,11 @@ def main():
         output_dir = Path(args.output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
 
-    output_file = (output_dir / input_file.name).with_suffix('.tiff')
+    output_suffix = '.tiff'
+    if input_file.suffix == '.tif':
+        output_suffix = '.tif'
+
+    output_file = (output_dir / input_file.name).with_suffix(output_suffix)
 
     if output_file == input_file:
         logger.error('Input and output are the same file')
