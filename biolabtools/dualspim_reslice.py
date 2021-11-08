@@ -404,12 +404,16 @@ def main():
 
     threads = []
 
+    nthreads = args.nthreads
+    if nthreads == -1:
+        nthreads = int(os.environ['OMP_NUM_THREADS'])
+
     if args.jp2ar_enabled:
         p = output_file.with_suffix('.zip')
-        logger.info('saving JP2000 ZIP archive to {}'.format(p))
+        logger.info(f'saving JP2000 ZIP archive to {p}, using {nthreads} threads')
         jp2ar_thread = threading.Thread(target=convert_to_jp2ar, kwargs=dict(
             input_data=a, output_dir=None, compression=args.jp2_compression,
-            nthreads=args.nthreads, temp_dir=None, output_file=str(p)))
+            nthreads=nthreads, temp_dir=None, output_file=str(p)))
         jp2ar_thread.start()
         threads.append(jp2ar_thread)
 
