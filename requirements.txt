@@ -6,20 +6,24 @@
 #
 coloredlogs==15.0.1
     # via -r requirements.in
-glymur==0.9.4
+glymur==0.9.7.post1
     # via -r requirements.in
 humanfriendly==10.0
     # via coloredlogs
-lxml==4.6.3
+lxml==4.7.1
     # via glymur
-numpy==1.21.2
+numpy==1.22.2
     # via
     #   glymur
     #   scipy
     #   tifffile
-scipy==1.7.1
+packaging==21.3
     # via -r requirements.in
-tifffile==2021.8.30
+pyparsing==3.0.7
+    # via packaging
+scipy==1.8.0
+    # via -r requirements.in
+tifffile==2022.2.9
     # via -r requirements.in
 
 # The following packages are considered to be unsafe in a requirements file:
