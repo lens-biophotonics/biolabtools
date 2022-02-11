@@ -170,6 +170,10 @@ def main():
     logger.info('loading {}'.format(input_file))
 
     a = infile.whole()
+    zip_input_data = a
+    if args.initial_matrix:
+        a_shifted = transform(a.T, np.linalg.inv(M_init), np.flipud(a.shape))  # X, Y, Z order
+        zip_input_data = a_shifted.T
 
     threads = []
 
@@ -181,7 +185,7 @@ def main():
         p = output_file.with_suffix('.zip')
         logger.info(f'saving JP2000 ZIP archive to {p}, using {nthreads} threads')
         jp2ar_thread = threading.Thread(target=convert_to_jp2ar, kwargs=dict(
-            input_data=a, output_dir=None, compression=args.jp2_compression,
+            input_data=zip_input_data, output_dir=None, compression=args.jp2_compression,
             nthreads=nthreads, temp_dir=None, output_file=str(p)))
         jp2ar_thread.start()
         threads.append(jp2ar_thread)
