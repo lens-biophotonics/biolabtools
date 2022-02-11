@@ -96,6 +96,7 @@ setup(
             'mip = biolabtools.mip:main',
             'bioretics_tar_to_3Dtiff = biolabtools.bioretics_tar_to_3Dtiff:main',
             'stack2tiff = biolabtools.stack2tiff:main',
+            'spim_transform = biolabtools.spim_transform:main',
             'extract_channel = biolabtools.extract_channel:main',
             'sum_channels = biolabtools.sum_channels:main',
             'dualspim_reslice = biolabtools.dualspim_reslice:main',
