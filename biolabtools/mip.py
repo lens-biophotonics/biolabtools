@@ -24,8 +24,13 @@ def parse_args():
     parser.add_argument('input_file', type=str)
     parser.add_argument('output_file', type=str)
 
+    group = parser.add_argument_group('input selection')
     parser.add_argument('-c', type=str, default=None, dest='channel',
                         choices=['r', 'g', 'b'], help='color channel')
+    group.add_argument('--zmin', type=int, default=0, help='start frame')
+    me_group = group.add_mutually_exclusive_group()
+    me_group.add_argument('--zmax', type=int, help='end frame (noninclusive)')
+    me_group.add_argument('--nz', type=int, help='number of z frames')
 
     args = parser.parse_args()
 
@@ -37,6 +42,9 @@ def parse_args():
 
     if args.channel is not None:
         args.channel = channels[args.channel]
+
+    if args.nz is not None:
+        args.zmax = args.zmin + args.nz
 
     return args
 
@@ -50,7 +58,6 @@ def main():
         infile.channel = args.channel
 
     total_byte_size = np.asscalar(np.prod(infile.shape) * infile.dtype.itemsize)
-    bigtiff = total_byte_size > 2 ** 31 - 1
 
     ram = psutil.virtual_memory().available * 0.5
     n_of_parts = ceil(total_byte_size / ram)
@@ -61,16 +68,22 @@ def main():
         pass
 
     curr_z = 0
-    part_height = infile.nfrms // n_of_parts
+    if args.zmin is not None:
+        curr_z = args.zmin
+    nz = infile.nfrms
+    if args.zmax is not None:
+        nz = args.zmax - args.zmin
+    zmax = curr_z + nz
+    part_height = nz // n_of_parts
     end_loop = False
 
     mip = np.zeros(infile.shape[1:], dtype=infile.dtype)
-    tiff.imsave(args.output_file, mip)
+    tiff.imwrite(args.output_file, mip)
 
     while True:
         end_z = curr_z + part_height
-        if end_z >= infile.shape[0]:
-            end_z = infile.shape[0]
+        if end_z >= zmax:
+            end_z = zmax
             end_loop = True
 
         logger.info('loading \tz=[{}:{}]'.format(curr_z, end_z))
