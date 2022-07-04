@@ -53,6 +53,7 @@ def main():
     args = parse_args()
 
     infile = InputFile(args.input_file)
+    infile.squeeze = False
 
     if args.channel is not None:
         infile.channel = args.channel
